@@ -10,61 +10,51 @@ function render() { const mapped = records(); const first = mapped[0] || sample;
 async function loadFile(file) { if (!file) return; if (!window.XLSX) return alert('The spreadsheet reader is still loading. Please try again in a moment.'); const book = XLSX.read(await file.arrayBuffer(), { type: 'array' }); const data = XLSX.utils.sheet_to_json(book.Sheets[book.SheetNames[0]], { defval: '' }); state.headers = Object.keys(data[0] || {}); state.rows = data; state.mapping = Object.fromEntries(FIELDS.map(([key]) => [key, state.headers.find(header => aliases[key].some(a => clean(header).includes(clean(a)))) || ''])); state.fileName = file.name; render() }
 function bind() { const input = document.querySelector('#file-input'); const zone = document.querySelector('#drop-zone'); document.querySelector('#choose-file').onclick = e => { e.preventDefault(); input.click() }; input.onchange = () => loadFile(input.files[0]); ['dragover','dragleave','drop'].forEach(type => zone.addEventListener(type, e => { e.preventDefault(); zone.classList.toggle('dragging', type === 'dragover') })); zone.addEventListener('drop', e => loadFile(e.dataTransfer.files[0])); document.querySelectorAll('[data-field]').forEach(select => select.onchange = () => { state.mapping[select.dataset.field] = select.value; render() }); document.querySelector('#export-pdf').onclick = exportPDF }
 function drawNotice(doc, x, y, w, h, r) {
-  const total = ['oldBalance', 'fees', 'books', 'others'].reduce((sum, field) => sum + (Number(r[field]) || 0), 0)
-  const px = value => x + value * w
-  const py = value => y + value * h
-  const rule = value => doc.line(x, py(value), x + w, py(value))
-  const amount = value => `Rs. ${money(value)}`
-
+  // jsPDF font sizes are points; coordinates and row heights are millimetres.
+  const total = ['oldBalance', 'fees', 'books', 'others']
+    .reduce((sum, field) => sum + (Number(r[field]) || 0), 0)
+  const split = w * 0.50
+  let top = y
+  doc.setDrawColor(0)
   doc.setTextColor(0)
-  doc.setDrawColor(38)
-  doc.setLineWidth(0.18)
-  doc.rect(x, y, w, h)
+  doc.setLineWidth(0.2)
 
-  doc.setFont('times', 'bold')
-  doc.setFontSize(h * 0.030)
-  doc.text('ANNOOR FOUNDATION SCHOOL', px(0.5), py(0.060), { align: 'center' })
-  rule(0.090)
-  doc.setFontSize(h * 0.026)
-  doc.text('FEES - NOTICE', px(0.5), py(0.140), { align: 'center' })
-  rule(0.180)
+  function row(cells, height = 8, bold = false, size = 10) {
+    let left = x
+    cells.forEach(([value, width, align = 'left']) => {
+      doc.rect(left, top, width, height)
+      doc.setFont('times', bold ? 'bold' : 'normal')
+      doc.setFontSize(size)
+      const text = String(value ?? '').replace(/[–—]/g, '-')
+      // Wrap names rather than allowing them to overlap neighbouring cells.
+      let lines = doc.splitTextToSize(text, width - 4)
+      let fontSize = size
+      while (lines.length * fontSize * 0.3528 * 1.1 > height - 2 && fontSize > 7) {
+        fontSize -= 0.5
+        doc.setFontSize(fontSize)
+        lines = doc.splitTextToSize(text, width - 4)
+      }
+      const lineHeight = fontSize * 0.3528 * 1.1
+      const baseline = top + (height - lines.length * lineHeight) / 2 + fontSize * 0.3528 * 0.82
+      const anchor = align === 'center' ? left + width / 2 : align === 'right' ? left + width - 2 : left + 2
+      doc.text(lines, anchor, baseline, { align, lineHeightFactor: 1.1 })
+      left += width
+    })
+    top += height
+  }
 
-  doc.setFont('times', 'normal')
-  doc.setFontSize(h * 0.020)
-  doc.text('STUDENT NAME', px(0.04), py(0.240))
-  doc.text(String(r.studentName || '—'), px(0.48), py(0.240))
-  doc.text('FATHER/GUARDIAN', px(0.04), py(0.315))
-  doc.text(String(r.guardian || '—'), px(0.48), py(0.315))
-  doc.text('ID NO', px(0.04), py(0.390))
-  doc.text(String(r.idNo || '—'), px(0.25), py(0.390))
-  doc.text('CLASS', px(0.58), py(0.390))
-  doc.text(String(r.className || '—'), px(0.78), py(0.390))
-
-  doc.setFont('times', 'bold')
-  doc.setFontSize(h * 0.022)
-  doc.text('Particulars - Balance Amounts', px(0.5), py(0.475), { align: 'center' })
-  rule(0.505)
-
-  const items = [['OLD BALANCE', r.oldBalance], ['FEES', r.fees], ['BOOKS', r.books], ['OTHERS', r.others]]
-  doc.setFont('times', 'normal')
-  doc.setFontSize(h * 0.019)
-  items.forEach(([label, value], index) => {
-    const baseline = 0.560 + index * 0.070
-    doc.text(label, px(0.38), py(baseline), { align: 'right' })
-    doc.text(amount(value), px(0.96), py(baseline), { align: 'right' })
-    rule(baseline + 0.031)
-  })
-
-  doc.setFont('times', 'bold')
-  doc.setFontSize(h * 0.022)
-  doc.text('TOTAL', px(0.42), py(0.865), { align: 'right' })
-  doc.text(amount(total), px(0.96), py(0.865), { align: 'right' })
-  rule(0.890)
-  doc.setFontSize(h * 0.016)
-  doc.text(['PARENTS ARE REQUESTED TO PAY', 'THE AMOUNT BY 27/09/2026.'], px(0.5), py(0.925), { align: 'center', lineHeightFactor: 1.05 })
-  doc.setFont('times', 'normal')
-  doc.setFontSize(h * 0.015)
-  doc.text('FOR DETAILS CONTACT : 7207506400', px(0.5), py(0.978), { align: 'center' })
+  row([['ANNOOR FOUNDATION SCHOOL', w, 'center']], 8, true, 12)
+  row([['FEES - NOTICE', w, 'center']], 8, true, 12)
+  row([['STUDENT NAME', split], [r.studentName || '-', w - split]], 9, false, 10)
+  row([['FATHER/GUARDIAN', split], [r.guardian || '-', w - split]], 9, false, 10)
+  row([['ID NO', w * .20], [r.idNo || '-', w * .30], ['CLASS', w * .22], [r.className || '-', w * .28]], 8, false, 10)
+  row([['Particulars - Balance Amounts', w, 'center']], 8, true, 11)
+  for (const [label, field] of [['OLD BALANCE', 'oldBalance'], ['FEES', 'fees'], ['BOOKS', 'books'], ['OTHERS', 'others']]) {
+    row([[label, split, 'right'], ['Rs. ' + money(r[field]), w - split]], 8, false, 11)
+  }
+  row([['TOTAL', split, 'right'], ['Rs. ' + money(total), w - split]], 8, true, 11)
+  row([['PARENTS ARE REQUESTED TO PAY\nTHE AMOUNT BY 27/09/2026.', w, 'center']], 11, true, 10)
+  row([['FOR DETAILS CONTACT : 7207506400', w, 'center']], 8, false, 10)
 }
 function exportPDF() { if (!window.jspdf) return alert('The PDF generator is still loading. Please try again in a moment.'); const doc = new jspdf.jsPDF({orientation:'portrait',unit:'mm',format:'a4'}); const gap=5,margin=8,w=(210-margin*2-gap)/2,h=(297-margin*2-gap)/2, source=records().length ? records() : [sample]; source.forEach((r,i)=>{if(i&&i%4===0)doc.addPage();const slot=i%4;drawNotice(doc,margin+(slot%2)*(w+gap),margin+Math.floor(slot/2)*(h+gap),w,h,r)});doc.save('fee-notices.pdf') }
 render()
