@@ -54,17 +54,17 @@ function drawNotice(doc, x, y, w, h, r) {
     top += height
   }
 
-  row([['ANNOOR FOUNDATION SCHOOL', w, 'center']], 6, true, 9)
-  row([['STUDENT NAME', split], [r.studentName || '-', w - split]], 7, false, 7.5)
-  row([['FATHER/GUARDIAN', split], [r.guardian || '-', w - split]], 7, false, 7.5)
-  row([['ID NO', w * .20], [r.idNo || '-', w * .30], ['CLASS', w * .22], [r.className || '-', w * .28]], 6, false, 7.5)
-  row([['FEES - NOTICE - Particulars - Balance Amounts', w, 'center']], 6, true, 8.5)
+  row([['ANNOOR FOUNDATION SCHOOL', w, 'center']], 7.5, true, 10)
+  row([['STUDENT NAME', split], [r.studentName || '-', w - split]], 8.5, false, 8.5)
+  row([['FATHER/GUARDIAN', split], [r.guardian || '-', w - split]], 8.5, false, 8.5)
+  row([['ID NO', w * .20], [r.idNo || '-', w * .30], ['CLASS', w * .22], [r.className || '-', w * .28]], 7.5, false, 8.5)
+  row([['FEES - NOTICE - Particulars - Balance Amounts', w, 'center']], 7.5, true, 9)
   for (const [label, field] of [['OLD BALANCE', 'oldBalance'], ['FEES', 'fees'], ['BOOKS', 'books'], ['OTHERS', 'others']]) {
-    row([[label, split, 'right'], ['Rs. ' + money(r[field]), w - split]], 5, false, 8)
+    row([[label, split, 'right'], ['Rs. ' + money(r[field]), w - split]], 7, false, 9)
   }
-  row([['TOTAL', split, 'right'], ['Rs. ' + money(total), w - split]], 5, true, 8)
-  row([[`PARENTS ARE REQUESTED TO PAY\nTHE AMOUNT BY ${paymentDate()}.`, w, 'center']], 8, true, 7)
-  row([['FOR DETAILS CONTACT : 7207506400', w, 'center']], 5, false, 7)
+  row([['TOTAL', split, 'right'], ['Rs. ' + money(total), w - split]], 7, true, 9)
+  row([[`PARENTS ARE REQUESTED TO PAY\nTHE AMOUNT BY ${paymentDate()}.`, w, 'center']], 9.5, true, 8)
+  row([['FOR DETAILS CONTACT : 7207506400', w, 'center']], 6.5, false, 7.5)
 }
-function exportPDF() { if (!window.jspdf) return alert('The PDF generator is still loading. Please try again in a moment.'); const mapped = records(); const source = mapped.length ? mapped.filter(record => feeTotal(record) !== 0) : [sample]; if (!source.length) return alert('No fee notices were created because every student has a total of zero.'); const doc = new jspdf.jsPDF({orientation:'portrait',unit:'mm',format:'a4'}); const gap=5,margin=8,w=(210-margin*2-gap)/2,h=(297-margin*2-gap*2)/3; source.forEach((r,i)=>{if(i&&i%6===0)doc.addPage();const slot=i%6;drawNotice(doc,margin+(slot%2)*(w+gap),margin+Math.floor(slot/2)*(h+gap),w,h,r)});doc.save('fee-notices.pdf') }
+function exportPDF() { if (!window.jspdf) return alert('The PDF generator is still loading. Please try again in a moment.'); const mapped = records(); const source = mapped.length ? mapped.filter(record => feeTotal(record) !== 0) : [sample]; if (!source.length) return alert('No fee notices were created because every student has a total of zero.'); const doc = new jspdf.jsPDF({orientation:'portrait',unit:'mm',format:'a4'}); const gap=3,margin=8,w=(210-margin*2-gap)/2,h=(297-margin*2-gap*2)/3; source.forEach((r,i)=>{if(i&&i%6===0)doc.addPage();const slot=i%6;drawNotice(doc,margin+(slot%2)*(w+gap),margin+Math.floor(slot/2)*(h+gap),w,h,r)});doc.save('fee-notices.pdf') }
 render()
